@@ -24,17 +24,18 @@ from torch.utils.tensorboard import SummaryWriter
 
 TRAIN_DIR = Path(r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\Train")
 TEST_DIR  = Path(r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\Test")
+SAVE_DIR = Path(r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\model")
 
-MODEL_NAME = "efficientnet"  # efficientnet / resnet / inception
+MODEL_NAME = "resnet"  # efficientnet / resnet / inception
 
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 EPOCHS = 10
 LR = 1e-4
 
 IMG_SIZE = 224
 VAL_RATIO = 0.2
 
-SEEDS = [0,1,2,3,4]
+SEEDS = [0,10,20,30,40]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -255,7 +256,11 @@ def run_experiment(seed):
             best_acc = val_acc
             patience_counter = 0
 
-            torch.save(model.state_dict(), f"best_model_seed{seed}.pth")
+            save_path = SAVE_DIR / f"{MODEL_NAME}_seed{seed}_best_acc{best_acc:.4f}.pth"
+
+            torch.save(model.state_dict(), save_path)
+
+            print(f"Model saved to: {save_path}")
 
         else:
 
