@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models, datasets, transforms
 from torch.utils.data import DataLoader
-
+from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,7 +23,7 @@ from pathlib import Path
 # 설정 (여기 수정)
 # =====================================================
 
-MODEL_PATH = r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\model\resnet_seed0_best_acc0.9741.pth"
+MODEL_PATH = r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\model\resnet_seed20_best_acc0.9902.pth"
 
 TEST_DIR = Path(r"C:\Users\user\OneDrive\바탕 화면\코딩 데이터\Brain_MRI\Test")
 
@@ -39,12 +39,35 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 # =====================================================
+# Border Crop
+# =====================================================
+
+class BorderCrop:
+
+    def __init__(self,ratio=0.07):
+        self.ratio=ratio
+
+    def __call__(self,img):
+
+        img=np.array(img)
+
+        h,w=img.shape[:2]
+
+        dh=int(h*self.ratio)
+        dw=int(w*self.ratio)
+
+        cropped=img[dh:h-dh, dw:w-dw]
+
+        return Image.fromarray(cropped)
+
+
+# =====================================================
 # 모델 로드
 # =====================================================
 
 def get_model():
 
-    model = models.resnet50()
+    model = models.resnet18()
 
     in_features = model.fc.in_features
     model.fc = nn.Linear(in_features, len(CLASS_NAMES))
@@ -68,9 +91,12 @@ print("Model loaded")
 # =====================================================
 
 transform = transforms.Compose([
-    transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.5],[0.5])
+        BorderCrop(0.07),
+
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5])
 ])
 
 dataset = datasets.ImageFolder(TEST_DIR, transform=transform)
@@ -134,6 +160,37 @@ auc = roc_auc_score(
 # =====================================================
 
 cm = confusion_matrix(all_labels, all_preds)
+
+# =====================================================
+# Sensitivity / Specificity
+# =====================================================
+
+sensitivity = []
+specificity = []
+
+for i in range(len(CLASS_NAMES)):
+
+    TP = cm[i, i]
+    FN = cm[i, :].sum() - TP
+    FP = cm[:, i].sum() - TP
+    TN = cm.sum() - (TP + FN + FP)
+
+    sens = TP / (TP + FN + 1e-8)
+    spec = TN / (TN + FP + 1e-8)
+
+    sensitivity.append(sens)
+    specificity.append(spec)
+
+metrics_df = pd.DataFrame({
+    "Class": CLASS_NAMES,
+    "Sensitivity": sensitivity,
+    "Specificity": specificity
+})
+
+metrics_df.to_csv(SAVE_DIR / "sensitivity_specificity.csv", index=False)
+
+print("\nClass-wise Sensitivity / Specificity")
+print(metrics_df)
 
 cm_df = pd.DataFrame(
     cm,
@@ -216,6 +273,9 @@ pred_df.to_csv(SAVE_DIR / "predictions.csv", index=False)
 # =====================================================
 
 with open(SAVE_DIR / "metrics.txt","w") as f:
+    f.write("\nClass-wise Sensitivity / Specificity\n")
+
+
 
     f.write(f"Accuracy: {accuracy}\n")
     f.write(f"Precision: {precision}\n")
@@ -223,5 +283,11 @@ with open(SAVE_DIR / "metrics.txt","w") as f:
     f.write(f"F1 Score: {f1}\n")
     f.write(f"ROC AUC: {auc}\n")
 
+    f.write("\n=== Class-wise Sensitivity / Specificity ===\n")
+    
+    for i,cls in enumerate(CLASS_NAMES):
+
+        f.write(f"{cls} Sensitivity: {sensitivity[i]}\n")
+        f.write(f"{cls} Specificity: {specificity[i]}\n")
 print("\nEvaluation results saved to:")
 print(SAVE_DIR)

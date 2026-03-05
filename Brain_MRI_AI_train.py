@@ -3,6 +3,7 @@ import time
 import copy
 import random
 from pathlib import Path
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -33,11 +34,38 @@ EPOCHS = 10
 LR = 1e-4
 
 IMG_SIZE = 224
-VAL_RATIO = 0.2
+VAL_RATIO = 0.3
 
 SEEDS = [0,10,20,30,40]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+print("DEVICE:", DEVICE)
+print("GPU NAME:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
+
+
+# ==========================================================
+# border crop
+class BorderCrop:
+
+    def __init__(self, ratio=0.05):
+        """
+        ratio: 잘라낼 테두리 비율 (예: 0.05 = 5%)
+        """
+        self.ratio = ratio
+
+    def __call__(self, img):
+
+        img = np.array(img)
+
+        h, w = img.shape[:2]
+
+        dh = int(h * self.ratio)
+        dw = int(w * self.ratio)
+
+        cropped = img[dh:h-dh, dw:w-dw]
+
+        return Image.fromarray(cropped)
 
 # ==========================================================
 
@@ -71,8 +99,8 @@ def get_model(name, num_classes):
 
     elif name == "resnet":
 
-        model = models.resnet50(
-            weights=models.ResNet50_Weights.DEFAULT
+        model = models.resnet18(
+            weights=models.ResNet18_Weights.DEFAULT
         )
 
         in_features = model.fc.in_features
@@ -186,15 +214,19 @@ def run_experiment(seed):
     writer = SummaryWriter(f"runs/mri_seed_{seed}")
 
     train_transform = transforms.Compose([
-        transforms.Resize((IMG_SIZE, IMG_SIZE)),
-        transforms.RandomRotation(15),
-        transforms.RandomHorizontalFlip(),
+        BorderCrop(0.07),
+
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.5], [0.5])
     ])
 
     test_transform = transforms.Compose([
-        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        BorderCrop(0.07),
+
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.5], [0.5])
     ])
