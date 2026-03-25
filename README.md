@@ -4,6 +4,7 @@ Glioma, Meningioma, Pituitary, Notumor
 
 https://github.com/user-attachments/assets/56363337-a6fe-452d-957d-1980784dfac6
 
+<img width="1181" height="1187" alt="image" src="https://github.com/user-attachments/assets/794c7bf2-f264-40ed-b70f-448fc082c215" />
 
 <img width="1800" height="1800" alt="confusion_matrix" src="https://github.com/user-attachments/assets/6b7269e3-f23b-4082-8f93-032b069802be" />
 
